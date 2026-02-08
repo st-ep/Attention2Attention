@@ -7,14 +7,19 @@ import numpy as np
 import torch
 
 
-def set_global_seed(seed: int, deterministic: bool = True) -> None:
+def set_global_seed(seed: int, deterministic: bool = False) -> None:
     """
     Set Python, NumPy, and PyTorch RNG seeds.
 
+    Args:
+      seed: Base seed for RNGs.
+      deterministic: Debug-mode switch. If True, enables deterministic algorithms in PyTorch.
+        This can reduce performance and may raise runtime errors on GPU for some ops/kernels.
+        If False (default), uses GPU-friendly settings.
+
     Notes:
-    - This affects model init and any code using global RNG.
-    - Datasets in this repo are deterministic w.r.t. cfg.seed by using a local torch.Generator,
-      but we still set global seed for reproducible model init and training.
+      - Our synthetic datasets are deterministic w.r.t. cfg.seed via a local torch.Generator.
+      - This function mainly affects model initialization and any code using global RNG.
     """
     random.seed(seed)
     np.random.seed(seed)
@@ -22,14 +27,24 @@ def set_global_seed(seed: int, deterministic: bool = True) -> None:
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
+    # Determinism / performance toggles (global state)
     if deterministic:
-        # Safe defaults; some ops may be nondeterministic on GPU depending on your setup.
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        if torch.backends.cudnn.is_available():
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
         try:
             torch.use_deterministic_algorithms(True)
         except Exception:
-            # Older PyTorch may not support this; ignore.
+            # Older PyTorch may not support toggling this; ignore.
+            pass
+    else:
+        # Fast defaults
+        if torch.backends.cudnn.is_available():
+            torch.backends.cudnn.deterministic = False
+            torch.backends.cudnn.benchmark = True
+        try:
+            torch.use_deterministic_algorithms(False)
+        except Exception:
             pass
 
 
