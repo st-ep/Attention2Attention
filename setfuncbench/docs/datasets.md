@@ -1,19 +1,32 @@
-# Datasets (high-level)
+# Datasets
 
-This benchmark studies **communication / attention** over **sets of functions** where each function is individually underdetermined from its own small context set.
+SetFuncBench studies communication and attention over sets of partially observed functions, where each function can be underdetermined from only its own context points.
 
-All datasets share the same tensor interface:
-- `ctx_x, ctx_y`: (B, K, M, 1)
-- `qry_x, qry_y`: (B, K, Q, 1)
+All datasets share the same core tensor interface:
+- `ctx_x, ctx_y`: `(B, K, M, 1)`
+- `qry_x, qry_y`: `(B, K, Q, 1)`
 
-## Dataset 1 — Shared quadratic core
-A set of functions share a global latent structure; each function also has its own offset. Solving well requires aggregating information across functions.
+## Detailed Specs
 
-## Dataset 2 — Mixture-of-curvatures quadratics
-Functions belong to hidden clusters that share curvature, with an additional within-cluster constraint that makes the cluster jointly identifiable. Context lives on the left of the domain while queries live on the right to stress extrapolation. Outliers can be included.
+- Dataset 1: [Shared quadratic core](./dataset1_shared_quadratic.md)
+- Dataset 2: [Mixture of curvatures](./dataset2_mixture_curvatures.md)
+- Dataset 3: [Hidden pairing](./dataset3_hidden_pairing.md)
+- Dataset 4: [Key-value pointer chasing](./dataset4_pointer_chasing.md)
 
-## Dataset 3 — Hidden pairing
-Each function has exactly one partner that shares parameters; only that partner contains the information needed to disambiguate. This stresses selective “who-to-talk-to” behavior.
+## Quick Comparison
 
-## Dataset 4 — Key–value pointer chasing
-Context contains special sentinel tokens encoding keys, values, pointers, and intercepts. The slope for each function is the value obtained after H pointer-chasing hops through the set. This stresses selective retrieval and multi-hop message passing.
+### Dataset 1 - Shared quadratic core
+
+Functions in the same set share global quadratic terms while keeping function-specific offsets. This tests whether models can exploit global shared structure.
+
+### Dataset 2 - Mixture of curvatures
+
+Functions belong to hidden groups with shared curvature and constrained slopes, plus optional outliers. Context and query ranges are separated to stress extrapolation and selective grouping.
+
+### Dataset 3 - Hidden pairing
+
+Each function has exactly one partner with shared parameters. The main challenge is selective communication: discover the right partner, ignore others.
+
+### Dataset 4 - Key-value pointer chasing
+
+Context uses sentinel tokens to encode key/value/pointer/intercept fields. Query slope is obtained via `H` pointer hops, stressing retrieval and multi-hop reasoning.
