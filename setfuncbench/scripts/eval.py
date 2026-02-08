@@ -10,6 +10,7 @@ from setfuncbench.config import DatasetConfig, ModelConfig, TrainConfig
 from setfuncbench.data.registry import sample_batch
 from setfuncbench.models.registry import create_model
 from setfuncbench.train.trainer import mse_loss
+from setfuncbench.utils.device import default_device
 from setfuncbench.utils.seed import SeedSequence, set_global_seed
 
 
@@ -27,9 +28,16 @@ def _cfg_from_dicts(payload: Dict[str, Any]) -> tuple[DatasetConfig, ModelConfig
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate a saved checkpoint (SetFuncBench).")
     parser.add_argument("--ckpt", type=str, required=True)
-    parser.add_argument("--device", type=str, default="cpu")
+
+    parser.add_argument("--device", type=str, default=default_device())
+
     parser.add_argument("--eval_batches", type=int, default=10)
     parser.add_argument("--seed_offset", type=int, default=50_000)
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="Enable deterministic algorithms (debug mode; may slow down GPU runs).",
+    )
     args = parser.parse_args()
 
     device = torch.device(args.device)
@@ -38,7 +46,8 @@ def main() -> None:
     dataset_cfg, model_cfg, train_cfg = _cfg_from_dicts(payload)
     train_cfg.device = args.device  # override device for eval
 
-    set_global_seed(train_cfg.seed, deterministic=True)
+    # Determinism is opt-in (debug mode).
+    set_global_seed(train_cfg.seed, deterministic=args.deterministic)
 
     model = create_model(model_cfg).to(device)
     model.load_state_dict(payload["model_state"])

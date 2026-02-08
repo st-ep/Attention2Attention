@@ -8,6 +8,7 @@ from setfuncbench.config import DatasetConfig, ModelConfig, TrainConfig
 from setfuncbench.models.registry import create_model, list_models
 from setfuncbench.data.registry import list_datasets
 from setfuncbench.train.trainer import Trainer
+from setfuncbench.utils.device import default_device
 from setfuncbench.utils.seed import set_global_seed
 
 
@@ -46,8 +47,15 @@ def main() -> None:
 
     parser.add_argument("--exp_name", type=str, default="debug")
     parser.add_argument("--run_dir", type=str, default="runs")
-    parser.add_argument("--device", type=str, default="cpu")
+
+    parser.add_argument("--device", type=str, default=default_device())
+
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="Enable deterministic algorithms (debug mode; may slow down GPU runs).",
+    )
 
     parser.add_argument("--steps", type=int, default=1000)
     parser.add_argument("--lr", type=float, default=1e-3)
@@ -84,6 +92,7 @@ def main() -> None:
         run_dir=args.run_dir,
         device=args.device,
         seed=args.seed,
+        deterministic=args.deterministic,
         steps=args.steps,
         lr=args.lr,
         log_every=args.log_every,
@@ -94,7 +103,8 @@ def main() -> None:
 
     os.makedirs(os.path.join(train_cfg.run_dir, train_cfg.exp_name), exist_ok=True)
 
-    set_global_seed(train_cfg.seed, deterministic=True)
+    # Seed affects model init; deterministic is opt-in.
+    set_global_seed(train_cfg.seed, deterministic=train_cfg.deterministic)
     model = create_model(model_cfg)
 
     trainer = Trainer(model=model, dataset_cfg=dataset_cfg, model_cfg=model_cfg, train_cfg=train_cfg)

@@ -26,15 +26,26 @@ def evaluate(
     num_batches: int,
     seed_offset: int = 10_000,
 ) -> Dict[str, float]:
+    """
+    Evaluate model MSE on qry_y over num_batches synthetic batches.
+
+    Important: preserves and restores the incoming model mode (train/eval) so that
+    training does not accidentally continue in eval mode after evaluation.
+    """
+    was_training = model.training
     model.eval()
-    losses = []
-    for i in range(num_batches):
-        cfg_i = replace(dataset_cfg, seed=seed_seq.seed_for_step(i, offset=seed_offset))
-        batch = sample_batch(cfg_i, device=device)
-        pred = model(batch)
-        loss = mse_loss(pred, batch["qry_y"]).item()
-        losses.append(loss)
-    return {"mse": float(sum(losses) / max(1, len(losses)))}
+    try:
+        losses = []
+        for i in range(num_batches):
+            cfg_i = replace(dataset_cfg, seed=seed_seq.seed_for_step(i, offset=seed_offset))
+            batch = sample_batch(cfg_i, device=device)
+            pred = model(batch)
+            loss = mse_loss(pred, batch["qry_y"]).item()
+            losses.append(loss)
+        return {"mse": float(sum(losses) / max(1, len(losses)))}
+    finally:
+        if was_training:
+            model.train()
 
 
 class Trainer:
@@ -92,7 +103,10 @@ class Trainer:
         return path
 
     def train(self) -> str:
-        set_global_seed(self.train_cfg.seed, deterministic=True)
+        # Global seed affects model init randomness and any global-RNG usage.
+        # Determinism is an opt-in debug mode.
+        set_global_seed(self.train_cfg.seed, deterministic=self.train_cfg.deterministic)
+
         self.model.train()
 
         last_ckpt: Optional[str] = None
@@ -120,6 +134,8 @@ class Trainer:
                     num_batches=self.train_cfg.eval_batches,
                 )
                 print(f"           eval_mse={metrics['mse']:.6f}")
+                # Extra safety: ensure we resume training mode even if evaluate() changes in the future.
+                self.model.train()
 
             if self.train_cfg.save_every and (step + 1) % self.train_cfg.save_every == 0:
                 last_ckpt = self.save_checkpoint(step=step + 1, filename=f"checkpoint_step_{step+1}.pt")

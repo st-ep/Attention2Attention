@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict
 
+from setfuncbench.utils.device import default_device
+
 
 @dataclass
 class DatasetConfig:
@@ -40,8 +42,11 @@ class TrainConfig:
     """Configuration for the training loop."""
     exp_name: str = "debug"
     run_dir: str = "runs"
-    device: str = "cpu"
+    device: str = field(default_factory=default_device)
     seed: int = 0
+
+    # Debug option: enable deterministic algorithms (can reduce performance / raise errors on GPU)
+    deterministic: bool = False
 
     steps: int = 1000
     lr: float = 1e-3
