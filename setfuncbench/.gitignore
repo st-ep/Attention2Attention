@@ -1,0 +1,20 @@
+# Virtual environment
+.venv/
+
+# Python cache/artifacts
+__pycache__/
+*.py[cod]
+
+# Packaging metadata
+*.egg-info/
+
+# Local experiment/data outputs
+generated/
+runs/
+
+# Local plot outputs (keep plotting source files, ignore rendered previews)
+src/setfuncbench/data/plots/*/preview.png
+
+# Common test/tool caches
+.pytest_cache/
+.mypy_cache/
